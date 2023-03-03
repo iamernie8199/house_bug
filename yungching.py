@@ -1,12 +1,18 @@
+from multiprocessing import Pool, cpu_count
+
 import pandas as pd
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from tqdm import tqdm
 from webdriver_manager.chrome import ChromeDriverManager
-from multiprocessing import Pool, cpu_count
+
+options = Options()
+options.add_argument('--headless')
 
 
 def page_proces(target_url):
     house_list = []
-    driver_c = webdriver.Chrome(ChromeDriverManager().install())
+    driver_c = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     driver_c.get(target_url)
 
     list_items = driver_c.find_elements('class name', 'm-list-item')
@@ -51,7 +57,7 @@ if __name__ == '__main__':
     driver.close()
 
     p = Pool(int(cpu_count() * 0.8))
-    result = p.map(page_proces, urls)
+    result = list(tqdm(p.imap(page_proces, urls), total=len(urls)))
     p.close()
     p.join()
 
