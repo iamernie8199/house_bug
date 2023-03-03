@@ -63,4 +63,4 @@ if __name__ == '__main__':
 
     result = [item for sublist in result for item in sublist]
 
-    df = pd.DataFrame.from_dict(result)
+    df = pd.DataFrame(result)
