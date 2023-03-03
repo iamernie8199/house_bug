@@ -1,4 +1,5 @@
 import re
+from multiprocessing import Pool, cpu_count
 from urllib.parse import urljoin
 
 import pandas as pd
@@ -6,31 +7,17 @@ import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-budget = '1500'
-budget_end = '2500'
-if len(budget)>1:
-    budget = f'{budget}-{budget_end}-price'
-else:
-    budget = f'{budget_end}-down-price'
-base_url = 'https://www.sinyi.com.tw'
-url = f'/buy/list/{budget}/apartment-dalou-huaxia-flat-townhouse-villa-type/Taipei-city/Taipei-R-mrtline/03-mrt/price-asc/index'
-url = urljoin(base_url, url)
-
 # 偽裝成瀏覽器發送請求
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
                   'Chrome/58.0.3029.110 Safari/537.3 '
 }
+base_url = 'https://www.sinyi.com.tw'
 
-res = requests.get(url, headers=headers)
-soup = BeautifulSoup(res.text, 'lxml')
 
-max_page = int(soup.find_all("li", class_="pageClassName")[-1].text)
-urls = [url.replace('index', str(i + 1)) for i in range(max_page)]
-house_list = []
-
-for u in tqdm(urls):
-    res = requests.get(u, headers=headers)
+def page_proces(target_url):
+    house_list = []
+    res = requests.get(target_url, headers=headers)
     soup = BeautifulSoup(res.text, 'lxml')
     list_items = soup.find("div", class_="buy-list-frame")
     list_items = list_items.find_all("div", class_="buy-list-item")
@@ -49,8 +36,8 @@ for u in tqdm(urls):
             'price_sub': None if price.find('span', text='(含車位價)') is None else '(含車位價)',
             'address': address_info[0].text,
             'type': address_info[2].text,
-            'age': float(address_info[1].text.replace('年', '')) if address_info[1].text.replace('年', '') not in ['--',
-                                                                                                                 '預售'] else None,
+            'age': float(address_info[1].text.replace('年', '')) if address_info[1].text.replace('年', '') not in [
+                '--', '預售'] else None,
             'floor': house_info[-1].text,
             '地': float(li.select_one('span:contains("地坪")').text.split(' ')[-1]) if li.select_one(
                 'span:contains("地坪")') is not None else None,
@@ -61,5 +48,38 @@ for u in tqdm(urls):
             'url': urljoin(base_url, li.find("a")['href'])
         }
         house_list.append(item)
+    return house_list
 
-df = pd.DataFrame(house_list)
+
+if __name__ == '__main__':
+    budget = '1500'
+    budget_end = '2500'
+    if len(budget) > 1:
+        budget = f'/{budget}-{budget_end}-price'
+    elif len(budget_end) > 1:
+        budget = f'/{budget_end}-down-price'
+
+    year = '10'
+    year_end = '30'
+    if len(year) > 1:
+        year = f'/{year}-{year_end}-year'
+    elif len(year_end) > 1:
+        year = f'/{year_end}-down-year'
+
+    url = f'/buy/list{budget}/apartment-dalou-huaxia-flat-townhouse-villa-type{year}/Taipei-city/Taipei-R-mrtline/03-mrt/price-asc/index'
+    url = urljoin(base_url, url)
+
+    max_page = requests.get(url, headers=headers)
+    max_page = BeautifulSoup(max_page.text, 'lxml')
+
+    max_page = int(max_page.find_all("li", class_="pageClassName")[-1].text)
+    urls = [url.replace('index', str(i + 1)) for i in range(max_page)]
+
+    p = Pool(int(cpu_count() * 0.8))
+    result = list(tqdm(p.imap(page_proces, urls), total=len(urls)))
+    p.close()
+    p.join()
+
+    result = [item for sublist in result for item in sublist]
+
+    df = pd.DataFrame(result)
