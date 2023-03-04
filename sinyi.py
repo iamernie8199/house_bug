@@ -15,6 +15,11 @@ headers = {
 base_url = 'https://www.sinyi.com.tw'
 
 
+def num_extract(string):
+    match = re.search(r'\d+\.\d+', string)
+    return match.group() if match else None
+
+
 def page_proces(target_url):
     house_list = []
     res = requests.get(target_url, headers=headers)
@@ -26,10 +31,6 @@ def page_proces(target_url):
         price = li.find("div", class_="LongInfoCard_Type_Right")
         address_info = li.find("div", class_="LongInfoCard_Type_Address").find_all('span')
         house_info = li.find("div", class_="LongInfoCard_Type_HouseInfo").find_all('span')
-        if li.select_one('span:contains("主")'):
-            match = re.search(r'\d+\.\d+', li.select_one('span:contains("主")').text)
-        else:
-            match = False
         item = {
             'title': li.find("div", class_="LongInfoCard_Type_Name").text,
             'price': price.select('span[style*="color:#dd2525"]')[0].text,
@@ -41,7 +42,7 @@ def page_proces(target_url):
             'floor': house_info[-1].text,
             '地': float(li.select_one('span:contains("地坪")').text.split(' ')[-1]) if li.select_one(
                 'span:contains("地坪")') is not None else None,
-            '實': match.group() if match else None,
+            '實': num_extract(li.select_one('span:contains("主")').text) if li.select_one('span:contains("主")') else None,
             '建': float(li.select_one('span:contains("建坪")').text.split(' ')[-1]) if li.select_one(
                 'span:contains("建坪")') is not None else None,
             '格局': house_info[2].text,
