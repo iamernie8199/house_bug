@@ -7,7 +7,6 @@ import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-# 偽裝成瀏覽器發送請求
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
                   'Chrome/58.0.3029.110 Safari/537.3 '
@@ -71,3 +70,4 @@ if __name__ == '__main__':
     result = [item for sublist in result for item in sublist]
 
     df = pd.DataFrame(result)
+    df.to_csv('out.csv', encoding="utf_8_sig")
